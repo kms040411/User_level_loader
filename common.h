@@ -14,7 +14,9 @@
 #endif
 
 int read_elf_header(FILE*, ELF_header*);
-void read_program_header(FILE*, Elf64_Off, uint16_t, ELF_Pheader[]);
+void read_program_header(FILE*, uint64_t, uint16_t, ELF_Pheader[]);
+void read_section_header(FILE*, uint64_t, uint16_t, ELF_Sheader[]);
+
 
 struct addr_mapping{
     int valid;

@@ -22,7 +22,7 @@ int read_elf_header(FILE *f, ELF_header *header){
     return 0;
 }
 
-void read_program_header(FILE *f, Elf64_Off offset, uint16_t num, ELF_Pheader header[num]){
+void read_program_header(FILE *f, uint64_t offset, uint16_t num, ELF_Pheader header[num]){
     uint16_t i;
     const fpos_t *_offset = (fpos_t *)&offset;
     fsetpos(f, _offset);
@@ -32,7 +32,7 @@ void read_program_header(FILE *f, Elf64_Off offset, uint16_t num, ELF_Pheader he
     return;
 }
 
-void read_section_header(FILE *f, Elf64_Off offset, uint16_t num, ELF_Sheader header[num]){
+void read_section_header(FILE *f, uint64_t offset, uint16_t num, ELF_Sheader header[num]){
     uint16_t i;
     const fpos_t *_offset = (fpos_t *)&offset;
     fsetpos(f, _offset);
