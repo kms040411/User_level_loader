@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=gnu99 -static
+CFLAGS = -std=gnu99 -g
 
 TARGET = apager
 

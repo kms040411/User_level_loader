@@ -24,11 +24,9 @@ void *build_stack(int, int, char **);
 
 static void segv_handler(int sig, siginfo_t *si, void *unused) {
     uint64_t addr = (uint64_t)si->si_addr;
-    printf("address: 0x%lx\n", addr);
     addr = addr & ~(sysconf(_SC_PAGE_SIZE) - 1);
     void *ret = mmap((void *)addr, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
     if(ret == NULL){
-        printf("mapping failed\n");
         exit(-1);
     }
 }
@@ -45,7 +43,8 @@ int main(int argc, char *argv[], char *env[]){
     }
 
     // Define signal handler
-    /*struct sigaction sa;
+    /*
+    struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = segv_handler;
     sigemptyset(&sa.sa_mask);
@@ -140,22 +139,27 @@ int main(int argc, char *argv[], char *env[]){
         mprotect(segment_start_p, segment_size_v, prot);
     }
 
+    #define MAPPING(addr) ((addr) - start_address + (uint64_t)start)
+
     // Calc entry address
     uint64_t entry = e_header->e_entry; // Entry address
-    uint64_t mapped_entry = entry - start_address + (uint64_t)start;
+    uint64_t mapped_entry = MAPPING(entry);
 
     // Build stack
     #define STACK_TYPE int64_t
     #define STACK_SIZE (sizeof(STACK_TYPE))
 
 
+    // @TODO: https://stackoverflow.com/questions/55679589/why-does-a-standalone-c-hello-program-crash-when-used-as-a-dynamic-linker
+
     // Allocate a page for stack
     void *stack = mmap(0,
-                        2 * sysconf(_SC_PAGE_SIZE),
+                        sysconf(_SC_PAGE_SIZE),
                         PROT_READ | PROT_WRITE, 
                         MAP_GROWSDOWN | MAP_ANONYMOUS | MAP_PRIVATE | MAP_STACK,
                         -1,
                         0);
+    memset(stack, 0, sysconf(_SC_PAGE_SIZE));
     void *stack_pointer = stack;
 
     // argv data
@@ -170,64 +174,71 @@ int main(int argc, char *argv[], char *env[]){
     }
 
     // NULL
-    stack_pointer = stack_pointer - STACK_SIZE;
+    /*tack_pointer = stack_pointer - STACK_SIZE;
     *(STACK_TYPE *)stack_pointer = 0;
     stack_pointer = stack_pointer - STACK_SIZE;
-    *(STACK_TYPE *)stack_pointer = 0;
-    stack_pointer = stack_pointer - STACK_SIZE;
-    *(STACK_TYPE *)stack_pointer = 0;
-    stack_pointer = stack_pointer - STACK_SIZE;
-    *(STACK_TYPE *)stack_pointer = 0;
+    *(STACK_TYPE *)stack_pointer = 0;*/
 
     // auxvec
 
-    #define ADD_AUX(id)                                         \
-	do {                                                        \
-        stack_pointer = stack_pointer - STACK_SIZE;                      \
+    #define ADD_AUX(id)                                             \
+	do {                                                            \
+        stack_pointer = stack_pointer - STACK_SIZE;                 \
 		*(STACK_TYPE *)stack_pointer = (STACK_TYPE)getauxval(id);   \
-        stack_pointer = stack_pointer - STACK_SIZE;                      \
+        stack_pointer = stack_pointer - STACK_SIZE;                 \
 		*(STACK_TYPE *)stack_pointer = (STACK_TYPE)id;              \
 	} while (0)
 
-    #define ADD_AUX2(id, val)                       \
-	do {                                            \
-        stack_pointer = stack_pointer - STACK_SIZE;          \
-		*(STACK_TYPE *)stack_pointer = (STACK_TYPE)val; \
-        stack_pointer = stack_pointer - STACK_SIZE;          \
-		*(STACK_TYPE *)stack_pointer = (STACK_TYPE)id;  \
+    #define ADD_AUX2(id, val)                                   \
+	do {                                                        \
+        stack_pointer = stack_pointer - STACK_SIZE;             \
+		*(STACK_TYPE *)stack_pointer = (STACK_TYPE)val;         \
+        stack_pointer = stack_pointer - STACK_SIZE;             \
+		*(STACK_TYPE *)stack_pointer = (STACK_TYPE)id;          \
 	} while (0)
 
-    //void *random = malloc(16);
-    //getrandom(random, 16, 0);
-
-    ADD_AUX(AT_SYSINFO_EHDR);
+    ADD_AUX(AT_NULL);
+    /*ADD_AUX(AT_SYSINFO_EHDR);
     ADD_AUX(AT_HWCAP);
     ADD_AUX(AT_PAGESZ);
     ADD_AUX(AT_CLKTCK);
-    ADD_AUX2(AT_PHDR, p_header);
-    ADD_AUX(AT_PHENT);
-    ADD_AUX2(AT_PHNUM, phdr_num);
-    ADD_AUX(AT_BASE);
     ADD_AUX(AT_FLAGS);
-    ADD_AUX2(AT_ENTRY, mapped_entry);
     ADD_AUX(AT_UID);
     ADD_AUX(AT_EUID);
     ADD_AUX(AT_GID);
     ADD_AUX(AT_EGID);
     ADD_AUX(AT_SECURE);
-    ADD_AUX(AT_HWCAP2);    
-    ADD_AUX(AT_RANDOM);
+    ADD_AUX(AT_HWCAP2);*/
+
+    ADD_AUX(AT_BASE);
+    ADD_AUX2(AT_ENTRY, mapped_entry);
     ADD_AUX2(AT_EXECFN, argv[1]);
+    ADD_AUX(AT_PHENT);
+    ADD_AUX2(AT_PHNUM, phdr_num);
+    ADD_AUX2(AT_PHDR, p_header);
+
+    /*
+    ADD_AUX2(AT_BASE, 0);   
+    ADD_AUX2(AT_ENTRY, 0); 
+    ADD_AUX2(AT_EXECFN, 0);
+    ADD_AUX2(AT_PHENT, 0);
+    ADD_AUX2(AT_PHNUM, 0);
+    ADD_AUX2(AT_PHDR, 0);*/
+
+    ADD_AUX(AT_RANDOM);
     ADD_AUX(AT_PLATFORM);
 
     // NULL
     stack_pointer = stack_pointer - STACK_SIZE;
     *(STACK_TYPE *)stack_pointer = 0;
 
-    // env pointers (Only for test)
-    stack_pointer = stack_pointer - STACK_SIZE;
-    *(STACK_TYPE *)stack_pointer = (STACK_TYPE)env[0];
-
+    // env pointers
+    while( *env != NULL ){
+        stack_pointer = stack_pointer - STACK_SIZE;
+        *(STACK_TYPE *)stack_pointer = (STACK_TYPE)(*env);
+        env++;
+    }
+  
     // NULL
     stack_pointer = stack_pointer - STACK_SIZE;
     *(STACK_TYPE *)stack_pointer = 0;
@@ -241,7 +252,8 @@ int main(int argc, char *argv[], char *env[]){
     // argc
     stack_pointer = stack_pointer - STACK_SIZE;
     *(STACK_TYPE *)stack_pointer = argument_num;
-    printf("stack: %p\n", stack_pointer);
+
+    break_point();
 
     free(argv_pointers);
 
@@ -252,29 +264,29 @@ int main(int argc, char *argv[], char *env[]){
         temp = temp + STACK_SIZE;
     }*/
 
+    fclose(f);
+    free(e_header);
+    //free(p_header);
+
     // Clean up registers
     asm volatile ("xor %rax, %rax\n\t"
-        "xor %rbx, %rbx\n\t"
-        "xor %rcx, %rcx\n\t"
-        "xor %rdx, %rdx\n\t"
-        "xor %rsi, %rsi\n\t"
-        "xor %rdi, %rdi\n\t"
-        "xor %r8, %r8\n\t"
-        "xor %r9, %r9\n\t"
-        "xor %r10, %r10\n\t"
-        "xor %r11, %r11\n\t"
-        "xor %r12, %r12\n\t"
-        "xor %r13, %r13\n\t"
-        "xor %r14, %r14\n\t"
-        "xor %r15, %r15");
+                "xor %rbx, %rbx\n\t"
+                "xor %rcx, %rcx\n\t"
+                "xor %rdx, %rdx\n\t"
+                "xor %rsi, %rsi\n\t"
+                "xor %rdi, %rdi\n\t"
+                "xor %r8, %r8\n\t"
+                "xor %r9, %r9\n\t"
+                "xor %r10, %r10\n\t"
+                "xor %r11, %r11\n\t"
+                "xor %r12, %r12\n\t"
+                "xor %r13, %r13\n\t"
+                "xor %r14, %r14\n\t"
+                "xor %r15, %r15");
 
     // Set stack pointer, Goto entry point
     asm volatile ("mov %0, %%rsp\n\t"
-                    "jmp *%1" : : "r"(stack), "r"(mapped_entry));
+                    "jmp *%1" : : "r"(stack_pointer), "r"(mapped_entry));
 
-    fclose(f);
-    free(e_header);
-    free(p_header);
-    //free(mapping_table);
     return 0;
 }
