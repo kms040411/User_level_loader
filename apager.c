@@ -108,6 +108,7 @@ int main(int argc, char *argv[], char *env[]){
         printf("MMAP FAILED\n");
         return 0;
     }
+    //printf("start address: %p\n", start);
     memset(start, 0, address_space_size);
 
     // Map each segment
@@ -174,7 +175,7 @@ int main(int argc, char *argv[], char *env[]){
     }
 
     // NULL
-    /*tack_pointer = stack_pointer - STACK_SIZE;
+    /*stack_pointer = stack_pointer - STACK_SIZE;
     *(STACK_TYPE *)stack_pointer = 0;
     stack_pointer = stack_pointer - STACK_SIZE;
     *(STACK_TYPE *)stack_pointer = 0;*/
@@ -207,24 +208,15 @@ int main(int argc, char *argv[], char *env[]){
     ADD_AUX(AT_EUID);
     ADD_AUX(AT_GID);
     ADD_AUX(AT_EGID);
-    ADD_AUX(AT_SECURE);
-    ADD_AUX(AT_HWCAP2);*/
-
+    ADD_AUX(AT_HWCAP2);
     ADD_AUX(AT_BASE);
+    ADD_AUX2(AT_SECURE, 0);
     ADD_AUX2(AT_ENTRY, mapped_entry);
-    ADD_AUX2(AT_EXECFN, argv[1]);
-    ADD_AUX(AT_PHENT);
+    ADD_AUX2(AT_EXECFN, argv_pointers[0]);
+    ADD_AUX2(AT_EXECFD, fileno(f));
+    ADD_AUX2(AT_PHENT, e_header->e_phentsize);
     ADD_AUX2(AT_PHNUM, phdr_num);
-    ADD_AUX2(AT_PHDR, p_header);
-
-    /*
-    ADD_AUX2(AT_BASE, 0);   
-    ADD_AUX2(AT_ENTRY, 0); 
-    ADD_AUX2(AT_EXECFN, 0);
-    ADD_AUX2(AT_PHENT, 0);
-    ADD_AUX2(AT_PHNUM, 0);
-    ADD_AUX2(AT_PHDR, 0);*/
-
+    ADD_AUX2(AT_PHDR, p_header);*/
     ADD_AUX(AT_RANDOM);
     ADD_AUX(AT_PLATFORM);
 
@@ -257,6 +249,8 @@ int main(int argc, char *argv[], char *env[]){
 
     free(argv_pointers);
 
+    //printf("stack: %p\n", stack_pointer);
+
     /*void *temp = stack_pointer;
     // Show Stack
     for (int i=0; i<45; i++){
@@ -264,8 +258,8 @@ int main(int argc, char *argv[], char *env[]){
         temp = temp + STACK_SIZE;
     }*/
 
-    fclose(f);
-    free(e_header);
+    //fclose(f);
+    //free(e_header);
     //free(p_header);
 
     // Clean up registers
