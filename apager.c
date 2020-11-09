@@ -79,6 +79,8 @@ int main(int argc, char *argv[], char *env[]){
     // Get the size of address space
     uint64_t start_address = UINT64_MAX;
     uint64_t end_address = 0;
+    //uint64_t start_offset = UINT64_MAX;
+    //uint64_t end_offset = 0;
     for(int i=0; i<phdr_num; i++){
         ELF_Pheader current_header = p_header[i];
         if(current_header.p_type != PT_LOAD) {
@@ -87,6 +89,8 @@ int main(int argc, char *argv[], char *env[]){
 
         uint64_t segment_start = current_header.p_vaddr;
         uint64_t segment_end = segment_start + current_header.p_memsz;
+        //uint64_t file_start = current_header.p_offset;
+        //uint64_t file_end = file_start + current_header.
         if (segment_start < start_address) {
             start_address = segment_start;
         }
@@ -99,16 +103,18 @@ int main(int argc, char *argv[], char *env[]){
 
     // MMAP
     // Let's think address of (void *)start as absolute address of start_address.
-    void *start = mmap(0,
+    void *start = mmap((void *)start_address,
                         address_space_size,
                         PROT_READ | PROT_WRITE | PROT_EXEC,
-                        MAP_PRIVATE | MAP_ANONYMOUS, -1,
+                        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1,
                         0);
-    if (start == NULL) {
+    //printf("start address: %p(0x%lx)\n", start, start_address);
+    if (start == (void *)-1) {
+        printf("errno: %d\n", errno);
         printf("MMAP FAILED\n");
         return 0;
     }
-    //printf("start address: %p\n", start);
+    
     memset(start, 0, address_space_size);
 
     // Map each segment
@@ -118,11 +124,11 @@ int main(int argc, char *argv[], char *env[]){
             continue;
         }
 
-        uint64_t segment_start_v = current_header.p_vaddr - start_address;
+        uint64_t segment_start_v = current_header.p_vaddr;// - start_address;
         uint64_t segment_size_v = current_header.p_memsz;
         uint64_t segment_start_f = current_header.p_offset;
         uint64_t segment_size_f = current_header.p_filesz;
-        void *segment_start_p = (void *)(start + segment_start_v);
+        void *segment_start_p = (void *)(segment_start_v);
 
         // Load from the file
         const fpos_t *_offset = (fpos_t *)&segment_start_f;
@@ -144,29 +150,27 @@ int main(int argc, char *argv[], char *env[]){
 
     // Calc entry address
     uint64_t entry = e_header->e_entry; // Entry address
-    uint64_t mapped_entry = MAPPING(entry);
+    uint64_t mapped_entry = entry;//MAPPING(entry);
 
     // Build stack
     #define STACK_TYPE int64_t
     #define STACK_SIZE (sizeof(STACK_TYPE))
 
-
-    // @TODO: https://stackoverflow.com/questions/55679589/why-does-a-standalone-c-hello-program-crash-when-used-as-a-dynamic-linker
-
     // Allocate a page for stack
-    void *stack = mmap(0,
-                        sysconf(_SC_PAGE_SIZE),
+    /*void *stack = mmap(0,
+                        2 * sysconf(_SC_PAGE_SIZE),
                         PROT_READ | PROT_WRITE, 
                         MAP_GROWSDOWN | MAP_ANONYMOUS | MAP_PRIVATE | MAP_STACK,
                         -1,
-                        0);
+                        0);*/
+    void *stack = malloc(2 * sysconf(_SC_PAGE_SIZE));
     memset(stack, 0, sysconf(_SC_PAGE_SIZE));
     void *stack_pointer = stack;
 
     // argv data
     int argument_num = argc - 1;
-    stack_pointer = stack_pointer + sysconf(_SC_PAGE_SIZE);
-    void **argv_pointers = (void **) malloc(sizeof(void*) * argument_num);
+    stack_pointer = stack_pointer + 2 * sysconf(_SC_PAGE_SIZE);
+    void **argv_pointers = (void **) malloc(sizeof(void *) * argument_num);
     for (int i=argument_num; i>=1; i--){
         int string_length = strlen(argv[i]) + 1;        // includes NULL character
         stack_pointer = stack_pointer - 16 * (int)(string_length / 16) - 16;
@@ -209,14 +213,14 @@ int main(int argc, char *argv[], char *env[]){
     ADD_AUX(AT_GID);
     ADD_AUX(AT_EGID);
     ADD_AUX(AT_HWCAP2);
-    ADD_AUX(AT_BASE);
+    ADD_AUX(AT_BASE);*/
     ADD_AUX2(AT_SECURE, 0);
     ADD_AUX2(AT_ENTRY, mapped_entry);
     ADD_AUX2(AT_EXECFN, argv_pointers[0]);
     ADD_AUX2(AT_EXECFD, fileno(f));
     ADD_AUX2(AT_PHENT, e_header->e_phentsize);
     ADD_AUX2(AT_PHNUM, phdr_num);
-    ADD_AUX2(AT_PHDR, p_header);*/
+    ADD_AUX2(AT_PHDR, p_header);
     ADD_AUX(AT_RANDOM);
     ADD_AUX(AT_PLATFORM);
 
@@ -247,13 +251,13 @@ int main(int argc, char *argv[], char *env[]){
 
     break_point();
 
-    free(argv_pointers);
+    //free(argv_pointers);
 
-    //printf("stack: %p\n", stack_pointer);
+    //printf("stack: %p, entry: 0x%lx\n", stack_pointer, mapped_entry);
 
-    /*void *temp = stack_pointer;
+    //void *temp = stack_pointer;
     // Show Stack
-    for (int i=0; i<45; i++){
+    /*for (int i=0; i<46; i++){
         printf("%lx\n", *(uint64_t *)temp);
         temp = temp + STACK_SIZE;
     }*/
@@ -280,7 +284,7 @@ int main(int argc, char *argv[], char *env[]){
 
     // Set stack pointer, Goto entry point
     asm volatile ("mov %0, %%rsp\n\t"
-                    "jmp *%1" : : "r"(stack_pointer), "r"(mapped_entry));
+                    "jmp *%1" : : "r"(stack_pointer), "r"(mapped_entry), "d"(0));
 
     return 0;
 }
