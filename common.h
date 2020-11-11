@@ -19,8 +19,22 @@ void read_section_header(FILE*, uint64_t, uint16_t, ELF_Sheader[]);
 
 
 struct addr_mapping{
-    int valid;
-    uint64_t absolute_offset;
-    uint64_t virtual_offset;
+    int load;
+    FILE *f;
+    uint64_t type;
+    uint64_t flag;
+    uint64_t address;
+    uint64_t file_offset;
     uint64_t size;
+    uint64_t align;
 };
+/*
+struct addr_mapping{
+    int valid;
+    uint64_t address_start;
+    uint64_t address_size;
+    uint64_t file_start;
+    uint64_t file_size;
+    int fd;
+    int prot;
+};*/

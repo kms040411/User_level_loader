@@ -9,5 +9,5 @@ section .text
         mov rdx, 0x0E
         syscall
         mov rax, 60
-        mov rdi, -1
+        mov rdi, 0
         syscall

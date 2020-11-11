@@ -75,6 +75,7 @@ int main(int argc, char *argv[], char *env[]){
      // Read program header
     ELF_Pheader *p_header = (ELF_Pheader *)malloc(sizeof(ELF_Pheader) * phdr_num);
     read_program_header(f, phdr_offset, phdr_num, p_header);
+
     
     // Get the size of address space
     uint64_t start_address = UINT64_MAX;
