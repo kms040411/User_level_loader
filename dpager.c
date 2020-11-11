@@ -115,7 +115,7 @@ static void segv_handler(int sig, siginfo_t *si, void *unused) {
         }
     }
     if (counter == 0) {
-        printf("No Mapping Table\n");
+        printf("Invalid Pointer\n");
         exit(-1);
     }
 
