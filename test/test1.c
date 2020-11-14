@@ -1,8 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 int main(int argc, char *argv[], char *env[]){
-    int a = 5;
-    printf("a : %d\n", a);
+    int *m = (int *)malloc(sizeof(int));
+    *m = 5;
+    printf("m : %d\n", *m);
     printf("hello_world\n");
+    free(m);
     return 0;
 }
