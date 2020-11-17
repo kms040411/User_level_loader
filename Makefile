@@ -8,7 +8,7 @@ all : $(TARGET)
 $(TARGET) : common.o apager.o dpager.o apager2.o
 	$(CC) $(CFLAGS) -o apager apager.o common.o
 	$(CC) $(CFLAGS) -o dpager dpager.o common.o
-	$(CC) $(CFLAGS) -o apager2 apager2.o common.o
+	$(CC) $(CFLAGS) -static -o apager2 apager2.o common.o
 
 common.o : common.c
 	$(CC) $(CFLAGS) -c -o common.o common.c

@@ -149,10 +149,10 @@ int main(int argc, char *argv[], char *env[]){
     // argv data
     int argument_num = argc - 1;
     stack_pointer = stack_pointer + STACK_PAGE_NUM * sysconf(_SC_PAGE_SIZE);
-    void **argv_pointers = (void **) malloc(sizeof(void *) * argument_num);
+    void **argv_pointers = (void **) malloc(sizeof(void *) * (argument_num + 1));
     for (int i=argument_num; i>=1; i--){
         int string_length = strlen(argv[i]) + 1;        // includes NULL character
-        stack_pointer = stack_pointer - 16 * (int)(string_length / 16) - 16;
+        stack_pointer = stack_pointer - 16 * (int)(string_length / 16.0) - 16;
         argv_pointers[i] = stack_pointer;
         memcpy(stack_pointer, argv[i], string_length);
     }
@@ -223,6 +223,7 @@ int main(int argc, char *argv[], char *env[]){
 
     free(argv_pointers);
 
+    printf("%p\n", argv_pointers);
     fclose(f);
     free(e_header);
     free(p_header);
@@ -248,9 +249,8 @@ int main(int argc, char *argv[], char *env[]){
     asm volatile("mov %%rsp, %0": "=r"(saved_rsp));
     asm volatile("mov %%rbp, %0": "=r"(saved_rbp));
 
-    // https://tribal1012.tistory.com/78
-
-    // Set stack pointer, Goto entry point
+    // Set stack pointer, Goto entry point, Register at
+    // https://gist.github.com/scsgxesgb/4203449
     asm volatile ("mov %0, %%rsp\n\t"
                     "jmp *%1" : : "r"(stack_pointer), "r"(mapped_entry), "d"(&&jump));
 
@@ -275,11 +275,18 @@ jump:
     // Restore stack pointer
     asm volatile("mov %0, %%rbp": : "r"(saved_rbp));
     asm volatile("mov %0, %%rsp": : "r"(saved_rsp));
+
+    //#0  tcache_get (tc_idx=63) at malloc.c:2954
+    //#1  __GI___libc_malloc (bytes=1024) at malloc.c:3060
+    //https://code.woboq.org/userspace/glibc/malloc/malloc.c.html
+    //malloc(1024);
     
     munmap(start, address_space_size);
     munmap(stack, STACK_PAGE_NUM * sysconf(_SC_PAGE_SIZE));
-    break_point();
-    printf("HELLO\n");
 
+    //#0  __GI___call_tls_dtors () at cxa_thread_atexit_impl.c:154
+    //#1  0x00007ffff7a25237 in __run_exit_handlers (status=0, listp=0x7ffff7dcd718 <__exit_funcs>, run_list_atexit=run_list_atexit@entry=true, run_dtors=run_dtors@entry=true) at exit.c:46
+    //#2  0x00007ffff7a2525a in __GI_exit (status=<optimized out>) at exit.c:139
+    //#3  0x0000555555555544 in main (argc=2, argv=0x7fffffffdba8, env=0x7fffffffdc70) at apager2.c:287
     return 0;
 }
