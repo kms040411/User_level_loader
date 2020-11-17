@@ -241,6 +241,7 @@ int main(int argc, char *argv[], char *env[]){
                 "xor %r13, %r13\n\t"
                 "xor %r14, %r14\n\t"
                 "xor %r15, %r15");
+    break_point();
 
     // Save stack pointer
     asm volatile("mov %%rsp, %0": "=r"(saved_rsp));
@@ -273,21 +274,8 @@ jump:
     asm volatile("mov %0, %%rbp": : "r"(saved_rbp));
     asm volatile("mov %0, %%rsp": : "r"(saved_rsp));
 
-    //#0  tcache_get (tc_idx=63) at malloc.c:2954
-    //#1  __GI___libc_malloc (bytes=1024) at malloc.c:3060
-    //https://code.woboq.org/userspace/glibc/malloc/malloc.c.html
-    //malloc(1024);
-    
     munmap(start, address_space_size);
     munmap(stack, STACK_PAGE_NUM * sysconf(_SC_PAGE_SIZE));
 
-    //#0  __GI___call_tls_dtors () at cxa_thread_atexit_impl.c:154
-    //#1  0x00007ffff7a25237 in __run_exit_handlers (status=0, listp=0x7ffff7dcd718 <__exit_funcs>, run_list_atexit=run_list_atexit@entry=true, run_dtors=run_dtors@entry=true) at exit.c:46
-    //#2  0x00007ffff7a2525a in __GI_exit (status=<optimized out>) at exit.c:139
-    //#3  0x0000555555555544 in main (argc=2, argv=0x7fffffffdba8, env=0x7fffffffdc70) at apager2.c:287
-
-    /*
-     * Above errors were resolved when apager2 was statically linked.
-     */
     return 0;
 }
