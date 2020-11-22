@@ -288,6 +288,7 @@ jump:
 
     /*
      * Above errors were resolved when apager2 was statically linked.
+     * https://www.gnu.org/software/libc/manual/html_node/Replacing-malloc.html
      */
     return 0;
 }
