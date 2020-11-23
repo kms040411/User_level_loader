@@ -12,15 +12,17 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/auxv.h>
+#include <setjmp.h>
 
 #include "common.h"
-#include <uthread.h>
+#include "uthread.h"
 
 // Global Variable
 static uint64_t saved_rsp;
 static uint64_t saved_rbp;
-static struct thread_info *thread_blocks;
+static int total_threads;
 
+void thread_terminate();
 void thread_schedule();
 
 static inline void break_point(){
@@ -36,8 +38,8 @@ int main(int argc, char *argv[], char *env[]){
     
     // Define an array for thread info structs
     // It should be static because it should be accessible for user threads
-    // @TODO:
-    thread_blocks = malloc(sizeof(struct thread_info) * (argc - 1));
+    thread_blocks = malloc(sizeof(struct thread_info) * argc);
+    total_threads = argc - 1;
 
     // Load Programs & Create Threads
     for(int program_index=1; program_index < argc; program_index++){
@@ -212,8 +214,16 @@ int main(int argc, char *argv[], char *env[]){
         free(p_header);
 
         // Build thread_info struct
-        // @TODO:
+        struct thread_info *current_thread = &thread_blocks[program_index - 1];
+        current_thread->sp = stack_pointer;
+        current_thread->pc = (void *)mapped_entry;
+        current_thread->state = RUNNABLE;
+        current_thread->initialized = 0;
 
+        current_thread->stack_mem = stack;
+        current_thread->program_mem = start;
+        current_thread->stack_size = STACK_PAGE_NUM * sysconf(_SC_PAGE_SIZE);
+        current_thread->program_size = address_space_size;
     }
 
     thread_schedule();
@@ -275,5 +285,60 @@ int main(int argc, char *argv[], char *env[]){
 
 // Thread scheduler
 void thread_schedule() {
-    // @TODO:
+    setjmp(loader_jmp_buf);
+    printf("thread_schedule\n");
+    struct thread_info *next_thread = NULL;
+    for(int i=0; i<total_threads; i++){
+        next_thread = &thread_blocks[next_thread_num];
+        if(next_thread->state == RUNNABLE) break;
+        next_thread_num++;
+        next_thread_num = next_thread_num % total_threads;
+    }
+    printf("current_thread : %d\n", current_thread_num);
+    current_thread_num = next_thread_num;
+    next_thread_num++;
+    next_thread_num = next_thread_num % total_threads;
+
+    if (next_thread == NULL) {
+        // This means all threads are terminated
+        return;
+    } else {
+        // Jump to this thread
+        if(next_thread->initialized) {
+            longjmp(next_thread->buf, 1);
+            __UNREACHABLE__;
+        } else {
+            // Clean up registers
+            asm volatile ("xor %rax, %rax\n\t"
+                        "xor %rbx, %rbx\n\t"
+                        "xor %rcx, %rcx\n\t"
+                        "xor %rdx, %rdx\n\t"
+                        "xor %rsi, %rsi\n\t"
+                        "xor %rdi, %rdi\n\t"
+                        "xor %r8, %r8\n\t"
+                        "xor %r9, %r9\n\t"
+                        "xor %r10, %r10\n\t"
+                        "xor %r11, %r11\n\t"
+                        "xor %r12, %r12\n\t"
+                        "xor %r13, %r13\n\t"
+                        "xor %r14, %r14\n\t"
+                        "xor %r15, %r15");
+            
+            // Set stack pointer, Goto entry point, Register at
+            // https://gist.github.com/scsgxesgb/4203449
+            asm volatile ("mov %0, %%rsp\n\t"
+                            "jmp *%1" : : "r"(next_thread->sp), "r"(next_thread->pc), "d"(thread_terminate));
+            __UNREACHABLE__;
+        }
+    }
+    __UNREACHABLE__;
+}
+
+void thread_terminate(){
+    struct thread_info *next_thread = &thread_blocks[current_thread_num];
+    if(next_thread == NULL) printf("NULL\n");
+    munmap(next_thread->program_mem, next_thread->program_size);
+    munmap(next_thread->stack_mem, next_thread->stack_size);
+    next_thread->state = TERMINATED;
+    thread_schedule();
 }

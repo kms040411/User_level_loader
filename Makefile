@@ -10,7 +10,7 @@ $(TARGET) : common.o apager.o dpager.o apager2.o backtoback.o uthread.o
 	$(CC) $(CFLAGS) -o dpager dpager.o common.o
 	$(CC) $(CFLAGS) -static -o apager2 apager2.o common.o
 	$(CC) $(CFLAGS) -static -o backtoback backtoback.o common.o
-	$(CC) $(CFLAGS) -static -o utrhead uthread.o common.o
+	$(CC) $(CFLAGS) -static -o uthread uthread.o common.o
 
 common.o : common.c
 	$(CC) $(CFLAGS) -c -o common.o common.c
