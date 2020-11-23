@@ -228,57 +228,13 @@ int main(int argc, char *argv[], char *env[]){
 
     thread_schedule();
 
-        /*
-        // Clean up registers
-        asm volatile ("xor %rax, %rax\n\t"
-                    "xor %rbx, %rbx\n\t"
-                    "xor %rcx, %rcx\n\t"
-                    "xor %rdx, %rdx\n\t"
-                    "xor %rsi, %rsi\n\t"
-                    "xor %rdi, %rdi\n\t"
-                    "xor %r8, %r8\n\t"
-                    "xor %r9, %r9\n\t"
-                    "xor %r10, %r10\n\t"
-                    "xor %r11, %r11\n\t"
-                    "xor %r12, %r12\n\t"
-                    "xor %r13, %r13\n\t"
-                    "xor %r14, %r14\n\t"
-                    "xor %r15, %r15");
-        break_point();
-
-        // Save stack pointer
-        asm volatile("mov %%rsp, %0": "=r"(saved_rsp));
-        asm volatile("mov %%rbp, %0": "=r"(saved_rbp));
-
-        // Set stack pointer, Goto entry point, Register at
-        // https://gist.github.com/scsgxesgb/4203449
-        asm volatile ("mov %0, %%rsp\n\t"
-                        "jmp *%1" : : "r"(stack_pointer), "r"(mapped_entry), "d"(&&jump));
-
-        // NOP slide
-        asm volatile("nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t");
-    jump:
-        asm volatile ("xor %rax, %rax\n\t"
-                    "xor %rbx, %rbx\n\t"
-                    "xor %rcx, %rcx\n\t"
-                    "xor %rdx, %rdx\n\t"
-                    "xor %rsi, %rsi\n\t"
-                    "xor %rdi, %rdi\n\t"
-                    "xor %r8, %r8\n\t"
-                    "xor %r9, %r9\n\t"
-                    "xor %r10, %r10\n\t"
-                    "xor %r11, %r11\n\t"
-                    "xor %r12, %r12\n\t"
-                    "xor %r13, %r13\n\t"
-                    "xor %r14, %r14\n\t"
-                    "xor %r15, %r15");
-
-        // Restore stack pointer
-        asm volatile("mov %0, %%rbp": : "r"(saved_rbp));
-        asm volatile("mov %0, %%rsp": : "r"(saved_rsp));
-
-        munmap(start, address_space_size);
-        munmap(stack, STACK_PAGE_NUM * sysconf(_SC_PAGE_SIZE));*/
+    // Clear Memory
+    printf("Clear memory\n");
+    for(int program_index=1; program_index < argc; program_index++){
+        struct thread_info *next_thread = &thread_blocks[program_index - 1];
+        munmap(next_thread->program_mem, next_thread->program_size);
+        munmap(next_thread->stack_mem, next_thread->stack_size);
+    }
     free(thread_blocks);
     return 0;
 }
@@ -291,16 +247,17 @@ void thread_schedule() {
     for(int i=0; i<total_threads; i++){
         next_thread = &thread_blocks[next_thread_num];
         if(next_thread->state == RUNNABLE) break;
+        next_thread = NULL;
         next_thread_num++;
         next_thread_num = next_thread_num % total_threads;
     }
-    printf("current_thread : %d\n", current_thread_num);
     current_thread_num = next_thread_num;
     next_thread_num++;
     next_thread_num = next_thread_num % total_threads;
 
     if (next_thread == NULL) {
         // This means all threads are terminated
+        printf("TERMINATE\n");
         return;
     } else {
         // Jump to this thread
@@ -335,10 +292,9 @@ void thread_schedule() {
 }
 
 void thread_terminate(){
+    printf("thread_terminate\n\n");
     struct thread_info *next_thread = &thread_blocks[current_thread_num];
-    if(next_thread == NULL) printf("NULL\n");
-    munmap(next_thread->program_mem, next_thread->program_size);
-    munmap(next_thread->stack_mem, next_thread->stack_size);
     next_thread->state = TERMINATED;
-    thread_schedule();
+    longjmp(loader_jmp_buf, 1);
+    __UNREACHABLE__;
 }

@@ -18,10 +18,10 @@ struct thread_info {
     int program_size;
 };
 
-static struct thread_info *thread_blocks;
-static jmp_buf loader_jmp_buf;
-static int current_thread_num = 0;
-static int next_thread_num = 0;
+struct thread_info *thread_blocks;
+jmp_buf loader_jmp_buf;
+int current_thread_num = 0;
+int next_thread_num = 0;
 
 void thread_yield(){
     if(thread_blocks == NULL) {
