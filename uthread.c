@@ -181,6 +181,9 @@ int main(int argc, char *argv[], char *env[]){
         ADD_AUX2(AT_PHENT, e_header->e_phentsize);
         ADD_AUX2(AT_PHNUM, phdr_num);
         ADD_AUX2(AT_PHDR, p_header);*/
+        ADD_AUX2(100, thread_blocks);
+        ADD_AUX2(101, &current_thread_num);
+        ADD_AUX2(102, &loader_jmp_buf);
         ADD_AUX(AT_RANDOM);
         ADD_AUX(AT_PAGESZ);
         ADD_AUX(AT_PLATFORM);
@@ -229,7 +232,7 @@ int main(int argc, char *argv[], char *env[]){
     thread_schedule();
 
     // Clear Memory
-    printf("Clear memory\n");
+    DMSG("Clear memory\n");
     for(int program_index=1; program_index < argc; program_index++){
         struct thread_info *next_thread = &thread_blocks[program_index - 1];
         munmap(next_thread->program_mem, next_thread->program_size);
@@ -242,7 +245,7 @@ int main(int argc, char *argv[], char *env[]){
 // Thread scheduler
 void thread_schedule() {
     setjmp(loader_jmp_buf);
-    printf("thread_schedule\n");
+    DMSG("thread_schedule\n");
     struct thread_info *next_thread = NULL;
     for(int i=0; i<total_threads; i++){
         next_thread = &thread_blocks[next_thread_num];
@@ -257,7 +260,7 @@ void thread_schedule() {
 
     if (next_thread == NULL) {
         // This means all threads are terminated
-        printf("TERMINATE\n");
+        DMSG("TERMINATE\n");
         return;
     } else {
         // Jump to this thread
@@ -265,6 +268,7 @@ void thread_schedule() {
             longjmp(next_thread->buf, 1);
             __UNREACHABLE__;
         } else {
+            next_thread->initialized = 1;
             // Clean up registers
             asm volatile ("xor %rax, %rax\n\t"
                         "xor %rbx, %rbx\n\t"
@@ -292,7 +296,7 @@ void thread_schedule() {
 }
 
 void thread_terminate(){
-    printf("thread_terminate\n\n");
+    DMSG("thread_terminate\n\n");
     struct thread_info *next_thread = &thread_blocks[current_thread_num];
     next_thread->state = TERMINATED;
     longjmp(loader_jmp_buf, 1);
