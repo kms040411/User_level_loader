@@ -12,7 +12,6 @@ all:	hello
 	$(CC) -o thread2 thread2.c ../uthread.h -std=gnu99 -static -Wl,-Ttext-segment=0x40000000
 
 hello:
-	# ORIGINAL TEST FILE : https://cirosantilli.com/elf-hello-world#code-3
 	nasm -W+all -f elf64 -o 'hello_world.o' 'hello_world.asm'
 	ld -o 'hello_world.out' 'hello_world.o' -static -T hello_world.ld
 

@@ -181,9 +181,12 @@ int main(int argc, char *argv[], char *env[]){
         ADD_AUX2(AT_PHENT, e_header->e_phentsize);
         ADD_AUX2(AT_PHNUM, phdr_num);
         ADD_AUX2(AT_PHDR, p_header);*/
+
+        // Send some thread information addresses
         ADD_AUX2(100, thread_blocks);
         ADD_AUX2(101, &current_thread_num);
         ADD_AUX2(102, &loader_jmp_buf);
+
         ADD_AUX(AT_RANDOM);
         ADD_AUX(AT_PAGESZ);
         ADD_AUX(AT_PLATFORM);
